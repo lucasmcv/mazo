@@ -24,7 +24,7 @@ select{font:inherit;background:#2a2045;color:var(--tx);border:1px solid #6b5aa8;
 .tools{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.tools button{padding:6px 10px;font-size:14px}.tools button.on{outline:2px solid #ffd166}
 .pad textarea{width:100%;min-height:90px;margin-top:8px;background:#1d1636;color:var(--tx);border:2px solid #ffd166;border-radius:10px;padding:8px;font:inherit}
 .pst{font-size:13px;color:var(--mu)}.nbe{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
-.altpk{background:#00e5c0;color:#00302a;font-weight:800;border-radius:5px;padding:1px 5px;box-shadow:0 0 0 2px #00e5c0;-webkit-box-decoration-break:clone;box-decoration-break:clone}</style></head><body>
+.altpk{background:#00e5c0;color:#00302a;font-weight:800;border-radius:5px;padding:1px 5px;box-shadow:0 0 0 2px #00e5c0;-webkit-box-decoration-break:clone;box-decoration-break:clone}html.light{filter:invert(1) hue-rotate(180deg);background:#000}html.light img,html.light canvas,html.light .dib{filter:invert(1) hue-rotate(180deg)}html.light .dib img{filter:none}#thb{position:fixed;left:10px;bottom:10px;z-index:50;padding:8px 12px;border-radius:999px;border:1px solid #6b5aa8;background:#2a2045;color:#f3eefc;font:600 14px system-ui,sans-serif}body.hasrate #thb{bottom:84px}</style></head><body>
 <div id="app"></div>
 <script>
 const DAY=86400000,today=()=>Math.floor(Date.now()/DAY);
@@ -129,4 +129,4 @@ async function cuaderno(){const E=$('#app');E.innerHTML='<div class="top"><butto
  if(!any)L.innerHTML='<div class="msg">Todavía no hay pizarras ni notas en este examen.</div>'}
 let nbPads=[];
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
-</script></body></html>
+</script><script>(function(){function ap(){var l=false;try{l=localStorage.getItem('off_theme')==='light'}catch(e){}document.documentElement.classList.toggle('light',l);var b=document.getElementById('thb');if(b)b.textContent=l?'🌙 Fondo oscuro':'☀️ Fondo claro'}function mk(){if(document.getElementById('thb'))return;var b=document.createElement('button');b.id='thb';b.type='button';b.onclick=function(e){e.stopPropagation();var l=!document.documentElement.classList.contains('light');try{localStorage.setItem('off_theme',l?'light':'dark')}catch(x){}ap()};document.body.appendChild(b);ap()}ap();if(document.body)mk();else document.addEventListener('DOMContentLoaded',mk);setInterval(function(){document.body.classList.toggle('hasrate',!!document.querySelector('.rate'))},500)})()</script></body></html>
