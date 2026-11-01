@@ -24,7 +24,7 @@ select{font:inherit;background:#2a2045;color:var(--tx);border:1px solid #6b5aa8;
 .tools{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.tools button{padding:6px 10px;font-size:14px}.tools button.on{outline:2px solid #ffd166}
 .pad textarea{width:100%;min-height:90px;margin-top:8px;background:#1d1636;color:var(--tx);border:2px solid #ffd166;border-radius:10px;padding:8px;font:inherit}
 .pst{font-size:13px;color:var(--mu)}.nbe{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
-</style></head><body>
+.altpk{background:#ffc6e3;color:#4a0030;border-radius:4px;padding:0 3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}</style></head><body>
 <div id="app"></div>
 <script>
 const DAY=86400000,today=()=>Math.floor(Date.now()/DAY);
@@ -74,7 +74,8 @@ function idOf(n){return EX+'|'+n}
 function build(){const td=today();list=[];D.c.forEach((c,n)=>{if(c.del)return;const p=P[idOf(n)];if(mode==='all'||!p||p[2]<=td||(mode==='r1'&&p[0]<=2))list.push(n)});
  if(mode==='r1')list=list.filter(n=>P[idOf(n)]&&P[idOf(n)][0]<=2);i=0;back=false;show()}
 function svgFor(c){if(!c.s||!D.k||D.k[c.s]===undefined)return '';const f=DIB[D.k[c.s]];return f&&f[c.s]?f[c.s]:''}
-function parseQ(q){const L=q.split('\n'),alts=[],st=[];L.forEach(l=>{const m=l.match(/^\s*([a-eA-E]|[1-9])[).]\s+(.*)/);if(m)alts.push({k:m[1].toLowerCase(),t:l.trim()});else if(!alts.length)st.push(l)});return {st:st.join('\n'),alts}}
+function parseQ(q){const L=q.split('\n'),alts=[],st=[];L.forEach(l=>{const m=l.match(/^\s*([a-hA-H]|[1-9])[).]\s+(.*)/);if(m)alts.push({k:m[1].toLowerCase(),t:l.trim()});else if(!alts.length)st.push(l)});if(alts.length<2){const P=q.split(/\s(?=[a-hA-H][).]\s)/);if(P.length>2&&P.slice(1).every((x,j)=>x.trim()[0].toLowerCase()==='abcdefgh'[j]))return {st:P[0],alts:P.slice(1).map(x=>({k:x.trim()[0].toLowerCase(),t:x.trim()}))}}return {st:st.join('\n'),alts}}
+function pkHL(html,alts){const pats=[];alts.forEach(a=>{const m=a.t.match(/^\s*([A-Za-z0-9]{1,2})\s*[).\-:]\s*(.+?)\s*\.?\s*$/);if(!m||m[2].length<2)return;const t=esc(m[2]).replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+');pats.push('\\(?'+m[1]+'\\s*[).\\-:]\\s*'+t+'\\.?')});if(!pats.length)return html;pats.sort((p,q)=>q.length-p.length);const re=new RegExp('('+pats.join('|')+')','gi');return html.replace(/>([^<]+)</g,(w,x)=>'>'+x.replace(re,'<span class="altpk">$1</span>')+'<')}
 function keyOf(a){const m=a.split('\n')[0].match(/^Respuesta correcta:\s*([a-eA-E1-9])[).]/);return m?m[1].toLowerCase():null}
 function guard(f){return function(){if(PADD&&PADD.dirty()&&!confirm('¿Querés salir sin guardar la pizarra y las notas? (Cancelar = volver y guardar)'))return;f.apply(this,arguments)}}
 function show(){const E=document.getElementById('app');PADD=null;
@@ -83,8 +84,8 @@ function show(){const E=document.getElementById('app');PADD=null;
  let h='<div class="top"><button id="hm">← Exámenes</button><select id="md"><option value="today">Repaso de hoy</option><option value="all">Todas</option><option value="r1">Solo nota 1-2</option></select><span class="mu">Tarjeta '+(i+1)+' de '+list.length+'</span></div>';
  h+='<div class="card'+(p?' r'+p[0]:'')+'" id="cd"><div class="tag">'+esc(c.t||'')+(p?' · última nota: '+p[0]:'')+'</div>';
  if(!back){h+='<div class="q">'+esc(pq.st).replace(/\n/g,'<br>')+'</div>';pq.alts.forEach(a=>{h+='<button class="alt" data-k="'+a.k+'">'+esc(a.t)+'</button>'});if(!pq.alts.length)h+='';h+='<p class="mu">Tocá la tarjeta para ver la respuesta</p>'}
- else{const sv=svgFor(c);if(sv)h+='<div class="dib"><img alt="" src="data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sv)+'"></div>';
-  const ps=c.a.split(/\n\s*\n|\n/);h+='<div class="ans">'+ps.map((t,j)=>'<p'+(j===0?' class="k"':'')+'>'+esc(t)+'</p>').join('')+'<p class="mu">Ahora calificá de 1 a 5 abajo</p></div>'}
+ else{const sv=svgFor(c);
+  const ps=c.a.split(/\n\s*\n|\n/);h+=pkHL('<div class="ans">'+ps.map((t,j)=>'<p'+(j===0?' class="k"':'')+'>'+esc(t)+'</p>').join('')+'</div>',pq.alts);if(sv)h+='<div class="dib"><img alt="" src="data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sv)+'"></div>';h+='<p class="mu">Ahora calificá de 1 a 5 abajo</p>'}
  h+='</div>'+(back?'<div id="padw"></div>':'')+'<div class="nav"><button id="pv">◀ Anterior</button><button id="nx">Siguiente ▶</button></div>';
  E.innerHTML=h;$('#md').value=mode;$('#md').onchange=e=>{mode=e.target.value;build()};$('#hm').onclick=guard(()=>{rm();home()});const top=E.querySelector('.top');const nb=document.createElement('button');nb.textContent='📚 Cuaderno';nb.onclick=guard(()=>{rm();cuaderno()});top.insertBefore(nb,top.children[1]);
  $('#pv').onclick=guard(()=>{if(i>0){i--;back=false;show()}});$('#nx').onclick=guard(()=>{if(i<list.length-1){i++;back=false;show()}});
