@@ -53,6 +53,7 @@ function stl(h){let s=$('#st');if(!s){s=document.createElement('div');s.id='st';
   if(m.mz==='list'){const E=await exams();for(const k in E)if(m.ids.indexOf(k)<0){delete E[k];await put('d:'+k,null)}await put('exams',E)}
   if(m.mz==='synced'){await put('pend',{});await put('pendpad',{});stl('<div>☁️ Tus calificaciones, pizarras y notas hechas sin internet se subieron a tu cuenta.</div>')}
   if(m.mz==='done'){const b=$('#pg');if(b){b.style.width='100%';$('#pgt').textContent='Guardando: 100%'}stl('<div class="msg"><b>Listo.</b> Ya podés estudiar sin internet desde el ícono Doctor Rei → «📴 Estudiar sin internet». Podés cerrar esta pestaña.</div>');if(!RECV)setTimeout(async()=>{if(document.getElementById('updb')&&!(typeof PADD!=='undefined'&&PADD&&PADD.dirty&&PADD.dirty())){location.reload();return}if(D&&EX&&document.getElementById('cd')&&!(PADD&&PADD.dirty&&PADD.dirty())){const km=mode,kx=EX;await open_(kx);mode=km;build();stl('<div>🔄 Actualizado con lo último de tu cuenta.</div>')}else if(!document.getElementById('cd'))home()},900)}
+  if(m.mz==='notes'){try{await put('notes',m.n||{});NOTI=null}catch(er){}return}
   if(m.mz==='err'){stl('<div>⚠️ '+esc(m.t)+'</div>')}
  }
  if(RECV)(async()=>{await idb();$('#app').innerHTML='<h1>📴 Guardando para usar sin internet…</h1><div id="st" class="msg">No cierres esta pestaña hasta que diga «Listo».</div>';
@@ -108,7 +109,8 @@ function show(){const E=document.getElementById('app');PADD=null;
  rm();if(back){const r=document.createElement('div');r.className='rate';r.innerHTML=[1,2,3,4,5].map(x=>'<button data-r="'+x+'">'+x+'</button>').join('');const nv=E.querySelector('.nav');(document.getElementById('padw')||nv).insertAdjacentElement('beforebegin',r);r.querySelectorAll('button').forEach(b=>b.onclick=guard(()=>rate(+b.dataset.r)))}
  window.scrollTo(0,0)}
 function rm(){const r=document.querySelector('.rate');if(r)r.remove()}
-async function rate(r){const n=list[i],id=idOf(n),p=P[id]||[0,0,0,0];let iv=p[1];const S=SRS[r];if(r<=3)iv=0;else iv=Math.max(S.d,Math.round(iv*S.m));
+let NOTI=null;async function noteFx(r){try{if(!NOTI)NOTI=(await get('notes'))||{};const u=NOTI[r];if(!u)return;const im=document.createElement('img');im.src=u;im.style.cssText='position:fixed;left:50%;top:50%;width:min(60vw,320px);transform:translate(-50%,-50%) scale(.7);opacity:1;z-index:9999;pointer-events:none;transition:transform .9s ease-out,opacity .9s ease-in';document.body.appendChild(im);requestAnimationFrame(()=>requestAnimationFrame(()=>{im.style.transform='translate(-50%,-50%) scale(1.6)';im.style.opacity='0'}));setTimeout(()=>im.remove(),1000)}catch(e){}}
+async function rate(r){noteFx(r);const n=list[i],id=idOf(n),p=P[id]||[0,0,0,0];let iv=p[1];const S=SRS[r];if(r<=3)iv=0;else iv=Math.max(S.d,Math.round(iv*S.m));
  const en=[r,iv,today()+iv,Date.now()];P[id]=en;await put('p:'+EX,P);const pd=await pend();(pd[EX]=pd[EX]||{})[id]=en;await put('pend',pd);
  list.splice(i,1);if(r<=3){let pos=Math.min(list.length,i+S.n);if(mode==='asc'){let lu=-1;for(let j=i;j<list.length;j++){const q=P[idOf(list[j])];if(!q||q[0]<=r)lu=j}if(lu>=0)pos=Math.max(pos,lu+1)}list.splice(pos,0,n)}if(i>=list.length)i=Math.max(0,list.length-1);back=false;show()}
 document.addEventListener('keydown',e=>{if(!D||RECV||/TEXTAREA|SELECT/.test((e.target||{}).tagName))return;if(PADD&&PADD.dirty())return;if(e.key===' '){e.preventDefault();back=!back;show()}else if(/^[1-5]$/.test(e.key)&&list.length)rate(+e.key)});
