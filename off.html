@@ -110,7 +110,7 @@ function show(){const E=document.getElementById('app');PADD=null;
 function rm(){const r=document.querySelector('.rate');if(r)r.remove()}
 async function rate(r){const n=list[i],id=idOf(n),p=P[id]||[0,0,0,0];let iv=p[1];const S=SRS[r];if(r<=3)iv=0;else iv=Math.max(S.d,Math.round(iv*S.m));
  const en=[r,iv,today()+iv,Date.now()];P[id]=en;await put('p:'+EX,P);const pd=await pend();(pd[EX]=pd[EX]||{})[id]=en;await put('pend',pd);
- list.splice(i,1);if(r<=3){const pos=Math.min(list.length,i+S.n);list.splice(pos,0,n)}if(i>=list.length)i=Math.max(0,list.length-1);back=false;show()}
+ list.splice(i,1);if(r<=3){let pos=Math.min(list.length,i+S.n);if(mode==='asc'){let lu=-1;for(let j=i;j<list.length;j++){const q=P[idOf(list[j])];if(!q||q[0]<=r)lu=j}if(lu>=0)pos=Math.max(pos,lu+1)}list.splice(pos,0,n)}if(i>=list.length)i=Math.max(0,list.length-1);back=false;show()}
 document.addEventListener('keydown',e=>{if(!D||RECV||/TEXTAREA|SELECT/.test((e.target||{}).tagName))return;if(PADD&&PADD.dirty())return;if(e.key===' '){e.preventDefault();back=!back;show()}else if(/^[1-5]$/.test(e.key)&&list.length)rate(+e.key)});
 let PADD=null;
 async function makePad(box,id){const rec=(await get('pad:'+id))||{d:{s:[],t:''}};let data=JSON.parse(JSON.stringify(rec.d||{s:[],t:''}));if(!data.s)data.s=[];if(typeof data.t!=='string')data.t='';let dirty=false;
