@@ -60,7 +60,7 @@ function stl(h){let s=$('#st');if(!s){s=document.createElement('div');s.id='st';
 else (async()=>{await idb();home()})();
 
 /* ---------- estudio sin internet ---------- */
-let EX,D,DIB,P,list=[],i=0,back=false,mode='today',chosen=null;
+let EX,D,DIB,P,list=[],i=0,back=false,mode='today',TOP='',chosen=null;
 async function home(){const E=await exams(),pd=await pend();const np=Object.values(pd).reduce((a,o)=>a+Object.keys(o).length,0),npp=Object.keys((await get('pendpad'))||{}).length;
  let h='<h1>📴 Estudiar sin internet</h1><div class="mu">Exámenes guardados en este dispositivo</div>';
  const ks=Object.keys(E);if(!ks.length)h+='<div class="msg">Todavía no guardaste ningún examen. Con internet, abrí la app y tocá <b>«⬇️ Sin internet»</b> en la lista de exámenes.</div>';
@@ -69,9 +69,9 @@ async function home(){const E=await exams(),pd=await pend();const np=Object.valu
  h+='<p><button id="sy" style="background:#1f5f3a;border-color:#69db7c">☁️ Sincronizar con mi cuenta</button> <button onclick="location.href=\'./\'">← Volver al inicio</button></p><div class="mu" style="font-size:13px">Sincronizar (necesita internet): sube a tu cuenta de Google tus notas 1-5, pizarras y notas hechas sin internet, y actualiza los exámenes guardados. Así seguís en la PC o la tablet donde quedaste.</div>';
  $('#app').innerHTML=h;document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>open_(b.dataset.ex));$('#sy').onclick=()=>{if(!navigator.onLine){alert('Necesitás internet para sincronizar.');return}window.open(APPU+'?sync=1','_blank')}}
 const APPU='https://script.google.com/macros/s/AKfycbwdZ4I3V_RpnAvIQ0BQ-20xQordBOhQi4AZGO3jZM0Q69O2HsUX6yc0us8qKSXuKN308g/exec';
-async function open_(ex){EX=ex;const d=await get('d:'+ex);D=d.data;DIB=d.dib||[];P=await prog(ex);build();}
+async function open_(ex){EX=ex;TOP='';const d=await get('d:'+ex);D=d.data;DIB=d.dib||[];P=await prog(ex);build();}
 function idOf(n){return EX+'|'+n}
-function build(){const td=today();list=[];D.c.forEach((c,n)=>{if(c.del)return;const p=P[idOf(n)];if(mode==='all'||!p||p[2]<=td||(mode==='r1'&&p[0]<=2))list.push(n)});
+function build(){const td=today();list=[];D.c.forEach((c,n)=>{if(c.del)return;if(TOP&&c.t!==TOP)return;const p=P[idOf(n)];if(mode==='all'||!p||p[2]<=td||(mode==='r1'&&p[0]<=2))list.push(n)});
  if(mode==='r1')list=list.filter(n=>P[idOf(n)]&&P[idOf(n)][0]<=2);i=0;back=false;show()}
 function svgFor(c){if(!c.s||!D.k||D.k[c.s]===undefined)return '';const f=DIB[D.k[c.s]];return f&&f[c.s]?f[c.s]:''}
 function parseQ(q){const L=q.split('\n'),alts=[],st=[];L.forEach(l=>{const m=l.match(/^\s*([a-hA-H]|[1-9])[).]\s+(.*)/);if(m)alts.push({k:m[1].toLowerCase(),t:l.trim()});else if(!alts.length)st.push(l)});if(alts.length<2){const P=q.split(/\s(?=[a-hA-H][).]\s)/);if(P.length>2&&P.slice(1).every((x,j)=>x.trim()[0].toLowerCase()==='abcdefgh'[j]))return {st:P[0],alts:P.slice(1).map(x=>({k:x.trim()[0].toLowerCase(),t:x.trim()}))}}return {st:st.join('\n'),alts}}
@@ -79,15 +79,15 @@ function pkHL(html,alts){const pats=[];alts.forEach(a=>{const m=a.t.match(/^\s*(
 function keyOf(a){const m=a.split('\n')[0].match(/^Respuesta correcta:\s*([a-eA-E1-9])[).]/);return m?m[1].toLowerCase():null}
 function guard(f){return function(){if(PADD&&PADD.dirty()&&!confirm('¿Querés salir sin guardar la pizarra y las notas? (Cancelar = volver y guardar)'))return;f.apply(this,arguments)}}
 function show(){const E=document.getElementById('app');PADD=null;
- if(!list.length){E.innerHTML='<h1>🎉 No queda nada para hoy</h1><div class="nav"><button id="all">▶ Seguir con «Todas»</button><button id="hm">← Exámenes</button></div>';$('#all').onclick=()=>{mode='all';$('#app');build()};$('#hm').onclick=home;document.querySelector('.rate')&&document.querySelector('.rate').remove();return}
+ if(!list.length){E.innerHTML='<h1>🎉 No queda nada para hoy</h1><div class="nav"><button id="all">▶ Seguir con «Todas»</button><button id="hm">← Exámenes</button>'+(TOP?'<button id="tt">📚 Todos los temas</button>':'')+'</div>';if($('#tt'))$('#tt').onclick=()=>{TOP='';build()};$('#all').onclick=()=>{mode='all';$('#app');build()};$('#hm').onclick=home;document.querySelector('.rate')&&document.querySelector('.rate').remove();return}
  const n=list[i],c=D.c[n],p=P[idOf(n)],pq=parseQ(c.q),key=keyOf(c.a);
- let h='<div class="top"><button id="hm">← Exámenes</button><select id="md"><option value="today">Repaso de hoy</option><option value="all">Todas</option><option value="r1">Solo nota 1-2</option></select><span class="mu">Tarjeta '+(i+1)+' de '+list.length+'</span></div>';
+ let h='<div class="top"><button id="hm">← Exámenes</button><select id="md"><option value="today">Repaso de hoy</option><option value="all">Todas</option><option value="r1">Solo nota 1-2</option></select>'+(function(){const ts=(D.t&&D.t.length?D.t:[...new Set(D.c.filter(c=>!c.del).map(c=>c.t).filter(Boolean))]).slice().sort();return '<select id="tp"><option value="">Todos los temas</option>'+ts.map(t=>'<option'+(t===TOP?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select>'})()+'<span class="mu">Tarjeta '+(i+1)+' de '+list.length+'</span></div>';
  h+='<div class="card'+(p?' r'+p[0]:'')+'" id="cd"><div class="tag">'+esc(c.t||'')+(p?' · última nota: '+p[0]:'')+'</div>';
  if(!back){h+='<div class="q">'+esc(pq.st).replace(/\n/g,'<br>')+'</div>';pq.alts.forEach(a=>{h+='<button class="alt" data-k="'+a.k+'">'+esc(a.t)+'</button>'});if(!pq.alts.length)h+='';h+='<p class="mu">Tocá la tarjeta para ver la respuesta</p>'}
  else{const sv=svgFor(c);
   const ps=c.a.split(/\n\s*\n|\n/);h+=pkHL('<div class="ans">'+ps.map((t,j)=>'<p'+(j===0?' class="k"':'')+'>'+esc(t)+'</p>').join('')+'</div>',pq.alts);if(sv)h+='<div class="dib"><img alt="" src="data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sv)+'"></div>';h+='<p class="mu">Ahora calificá de 1 a 5 abajo</p>'}
  h+='</div>'+(back?'<div id="padw"></div>':'')+'<div class="nav"><button id="pv">◀ Anterior</button><button id="nx">Siguiente ▶</button></div>';
- E.innerHTML=h;$('#md').value=mode;$('#md').onchange=e=>{mode=e.target.value;build()};$('#hm').onclick=guard(()=>{rm();home()});const top=E.querySelector('.top');const nb=document.createElement('button');nb.textContent='📚 Cuaderno';nb.onclick=guard(()=>{rm();cuaderno()});top.insertBefore(nb,top.children[1]);
+ E.innerHTML=h;$('#md').value=mode;$('#md').onchange=e=>{mode=e.target.value;build()};$('#tp').onchange=e=>{TOP=e.target.value;build()};$('#hm').onclick=guard(()=>{rm();home()});const top=E.querySelector('.top');const nb=document.createElement('button');nb.textContent='📚 Cuaderno';nb.onclick=guard(()=>{rm();cuaderno()});top.insertBefore(nb,top.children[1]);
  $('#pv').onclick=guard(()=>{if(i>0){i--;back=false;show()}});$('#nx').onclick=guard(()=>{if(i<list.length-1){i++;back=false;show()}});
  $('#cd').onclick=guard(e=>{if(e.target.closest('.alt'))return;back=!back;show()});if(back)makePad($('#padw'),idOf(n)).then(x=>PADD=x);
  document.querySelectorAll('.alt').forEach(b=>b.onclick=e=>{e.stopPropagation();if(chosen!==null||!key)return;chosen=b.dataset.k;b.classList.add(chosen===key?'ok':'bad');const g=document.querySelector('.alt[data-k="'+key+'"]');if(g)g.classList.add('ok');setTimeout(()=>{chosen=null;back=true;show()},1200)});
