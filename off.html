@@ -43,7 +43,7 @@ let Q=Promise.resolve();window.addEventListener('message',e=>{Q=Q.then(()=>H(e))
 function stl(h){let s=$('#st');if(!s){s=document.createElement('div');s.id='st';s.className='msg';$('#app').prepend(s)}s.innerHTML+=h}
 
  async function H(e){const m=e.data;if(!m||m.mz===undefined)return;
-  if(m.mz==='hello'){e.source.postMessage({mz:'ready',pend:await pend(),pendpad:(await get('pendpad'))||{}},'*');stl('<div>☁️ Sincronizando con tu cuenta…</div>');return}
+  if(m.mz==='hello'){e.source.postMessage({mz:'ready',pend:await pend(),pendpad:(await get('pendpad'))||{},saved:Object.keys(await exams())},'*');stl('<div>☁️ Sincronizando con tu cuenta…</div>');return}
   if(m.mz==='deck'){const E=await exams();E[m.ex]={name:m.name,n:m.data.c.length,at:Date.now()};await put('d:'+m.ex,{data:m.data,dib:m.dib});
    const P=await prog(m.ex),R=m.prog||{};for(const k in R){if(!P[k]||(R[k][3]||0)>(P[k][3]||0))P[k]=R[k]}await put('p:'+m.ex,P);await put('exams',E);
    const PP=(await get('pendpad'))||{};for(const n in (m.pads||{})){const id=m.ex+'|'+n;if(PP[id])continue;try{await put('pad:'+id,{d:JSON.parse(m.pads[n]),ts:0})}catch(er){}}
@@ -56,7 +56,7 @@ function stl(h){let s=$('#st');if(!s){s=document.createElement('div');s.id='st';
  }
  if(RECV)(async()=>{await idb();$('#app').innerHTML='<h1>📴 Guardando para usar sin internet…</h1><div id="st" class="msg">No cierres esta pestaña hasta que diga «Listo».</div>';
   const op=window.opener;if(!op){$('#st').textContent='Abrí esta página desde el botón «⬇️ Sin internet» de la app.';return}
-  op.postMessage({mz:'ready',pend:await pend(),pendpad:(await get('pendpad'))||{}},'*')})();
+  op.postMessage({mz:'ready',pend:await pend(),pendpad:(await get('pendpad'))||{},saved:Object.keys(await exams())},'*')})();
 else (async()=>{await idb();home()})();
 
 /* ---------- estudio sin internet ---------- */
