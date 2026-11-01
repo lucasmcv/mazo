@@ -1,0 +1,90 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doctor Rei · sin internet</title><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><meta name="theme-color" content="#1c1430">
+<style>
+:root{--bg:#17122b;--card:#231a40;--line:#3a2f63;--tx:#f3eefc;--mu:#a9a3b8;--ac:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,sans-serif;padding:12px 12px 90px}
+h1{font-size:22px;margin:4px 0 2px;color:var(--ac)}small,.mu{color:var(--mu)}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid #6b5aa8;background:#2a2045;color:var(--tx);padding:10px 14px}
+.ex{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.ex b{flex:1}.top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+select{font:inherit;background:#2a2045;color:var(--tx);border:1px solid #6b5aa8;border-radius:10px;padding:8px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;min-height:260px}
+.card.r1{border-color:#ff6b6b}.card.r2{border-color:#ffa94d}.card.r3{border-color:#ffd43b}.card.r4{border-color:#69db7c}.card.r5{border-color:#4dabf7}
+.tag{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
+.q{font-weight:700;font-size:18px;margin:8px 0}.alt{display:block;width:100%;text-align:left;margin:6px 0;background:#1d1636;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.alt.ok{background:#1f5f3a;border-color:#69db7c}.alt.bad{background:#6b1f2a;border-color:#ff6b6b}
+.ans p{margin:0 0 10px}.ans .k{color:var(--ac);font-weight:700}.dib{background:#fff5ec;border-radius:12px;margin:8px 0}.dib svg,.dib img{width:100%;height:auto;display:block}
+.rate{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:10px;background:#120d22ee;border-top:1px solid var(--line)}
+.rate button{flex:1;font-size:20px;font-weight:800;padding:10px 0}
+.rate button:nth-child(1){color:#ff6b6b}.rate button:nth-child(2){color:#ffa94d}.rate button:nth-child(3){color:#ffd43b}.rate button:nth-child(4){color:#69db7c}.rate button:nth-child(5){color:#4dabf7}
+.msg{background:#2a2045;border:1px solid #6b5aa8;border-radius:12px;padding:10px;margin:10px 0}
+.nav{display:flex;gap:8px;margin:10px 0}.nav button{flex:1}
+</style></head><body>
+<div id="app"></div>
+<script>
+const DAY=86400000,today=()=>Math.floor(Date.now()/DAY);
+const SRS={1:{n:3},2:{n:8},3:{n:10,d:1,m:1.2},4:{n:50,d:2,m:2.5},5:{n:100,d:4,m:3.5}};
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let db;function idb(){return new Promise((ok,ko)=>{const r=indexedDB.open('mazo_off',1);r.onupgradeneeded=()=>{r.result.createObjectStore('kv')};r.onsuccess=()=>{db=r.result;ok()};r.onerror=()=>ko(r.error)})}
+function get(k){return new Promise(ok=>{const t=db.transaction('kv').objectStore('kv').get(k);t.onsuccess=()=>ok(t.result);t.onerror=()=>ok(undefined)})}
+function put(k,v){return new Promise(ok=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();t.onerror=()=>ok()})}
+async function exams(){return (await get('exams'))||{}}
+async function prog(ex){return (await get('p:'+ex))||{}}
+async function pend(){return (await get('pend'))||{}}
+
+/* ---------- recepción desde la app con internet ---------- */
+const RECV=/recv=1/.test(location.search);
+if(RECV){
+ let Q=Promise.resolve();window.addEventListener('message',e=>{Q=Q.then(()=>H(e)).catch(()=>{})});
+ async function H(e){const m=e.data;if(!m||m.mz===undefined)return;
+  if(m.mz==='deck'){const E=await exams();E[m.ex]={name:m.name,n:m.data.c.length,at:Date.now()};await put('d:'+m.ex,{data:m.data,dib:m.dib});
+   const P=await prog(m.ex),R=m.prog||{};for(const k in R){if(!P[k]||(R[k][3]||0)>(P[k][3]||0))P[k]=R[k]}await put('p:'+m.ex,P);await put('exams',E);
+   $('#st').innerHTML+='<div>✅ '+esc(m.name)+' ('+m.data.c.length+' tarjetas)</div>'}
+  if(m.mz==='list'){const E=await exams();for(const k in E)if(m.ids.indexOf(k)<0){delete E[k];await put('d:'+k,null)}await put('exams',E)}
+  if(m.mz==='synced'){await put('pend',{});$('#st').innerHTML+='<div>☁️ Tus calificaciones sin internet se subieron a tu cuenta.</div>'}
+  if(m.mz==='done'){$('#st').innerHTML+='<div class="msg"><b>Listo.</b> Ya podés estudiar sin internet desde el ícono Doctor Rei → «📴 Estudiar sin internet». Podés cerrar esta pestaña.</div>'}
+  if(m.mz==='err'){$('#st').innerHTML+='<div>⚠️ '+esc(m.t)+'</div>'}
+ }
+ (async()=>{await idb();$('#app').innerHTML='<h1>📴 Guardando para usar sin internet…</h1><div id="st" class="msg">No cierres esta pestaña hasta que diga «Listo».</div>';
+  const op=window.opener;if(!op){$('#st').textContent='Abrí esta página desde el botón «⬇️ Sin internet» de la app.';return}
+  op.postMessage({mz:'ready',pend:await pend()},'*')})();
+}else{(async()=>{await idb();home()})()}
+
+/* ---------- estudio sin internet ---------- */
+let EX,D,DIB,P,list=[],i=0,back=false,mode='today',chosen=null;
+async function home(){const E=await exams(),pd=await pend();const np=Object.values(pd).reduce((a,o)=>a+Object.keys(o).length,0);
+ let h='<h1>📴 Estudiar sin internet</h1><div class="mu">Exámenes guardados en este dispositivo</div>';
+ const ks=Object.keys(E);if(!ks.length)h+='<div class="msg">Todavía no guardaste ningún examen. Con internet, abrí la app y tocá <b>«⬇️ Sin internet»</b> en la lista de exámenes.</div>';
+ ks.forEach(k=>{h+='<div class="ex"><b>'+esc(E[k].name)+'<br><small>'+E[k].n+' tarjetas · guardado '+new Date(E[k].at).toLocaleDateString()+'</small></b><button data-ex="'+esc(k)+'">Estudiar</button></div>'});
+ if(np)h+='<div class="msg">☁️ Tenés <b>'+np+'</b> calificaciones hechas sin internet. Se suben a tu cuenta la próxima vez que, con internet, toques «⬇️ Sin internet» en la app.</div>';
+ h+='<p><button onclick="location.href=\'./\'">← Volver al inicio</button></p>';
+ $('#app').innerHTML=h;document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>open_(b.dataset.ex))}
+async function open_(ex){EX=ex;const d=await get('d:'+ex);D=d.data;DIB=d.dib||[];P=await prog(ex);build();}
+function idOf(n){return EX+'|'+n}
+function build(){const td=today();list=[];D.c.forEach((c,n)=>{if(c.del)return;const p=P[idOf(n)];if(mode==='all'||!p||p[2]<=td||(mode==='r1'&&p[0]<=2))list.push(n)});
+ if(mode==='r1')list=list.filter(n=>P[idOf(n)]&&P[idOf(n)][0]<=2);i=0;back=false;show()}
+function svgFor(c){if(!c.s||!D.k||D.k[c.s]===undefined)return '';const f=DIB[D.k[c.s]];return f&&f[c.s]?f[c.s]:''}
+function parseQ(q){const L=q.split('\n'),alts=[],st=[];L.forEach(l=>{const m=l.match(/^\s*([a-eA-E]|[1-9])[).]\s+(.*)/);if(m)alts.push({k:m[1].toLowerCase(),t:l.trim()});else if(!alts.length)st.push(l)});return {st:st.join('\n'),alts}}
+function keyOf(a){const m=a.split('\n')[0].match(/^Respuesta correcta:\s*([a-eA-E1-9])[).]/);return m?m[1].toLowerCase():null}
+function show(){const E=document.getElementById('app');
+ if(!list.length){E.innerHTML='<h1>🎉 No queda nada para hoy</h1><div class="nav"><button id="all">▶ Seguir con «Todas»</button><button id="hm">← Exámenes</button></div>';$('#all').onclick=()=>{mode='all';$('#app');build()};$('#hm').onclick=home;document.querySelector('.rate')&&document.querySelector('.rate').remove();return}
+ const n=list[i],c=D.c[n],p=P[idOf(n)],pq=parseQ(c.q),key=keyOf(c.a);
+ let h='<div class="top"><button id="hm">← Exámenes</button><select id="md"><option value="today">Repaso de hoy</option><option value="all">Todas</option><option value="r1">Solo nota 1-2</option></select><span class="mu">Tarjeta '+(i+1)+' de '+list.length+'</span></div>';
+ h+='<div class="card'+(p?' r'+p[0]:'')+'" id="cd"><div class="tag">'+esc(c.t||'')+(p?' · última nota: '+p[0]:'')+'</div>';
+ if(!back){h+='<div class="q">'+esc(pq.st).replace(/\n/g,'<br>')+'</div>';pq.alts.forEach(a=>{h+='<button class="alt" data-k="'+a.k+'">'+esc(a.t)+'</button>'});if(!pq.alts.length)h+='';h+='<p class="mu">Tocá la tarjeta para ver la respuesta</p>'}
+ else{const sv=svgFor(c);if(sv)h+='<div class="dib"><img alt="" src="data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sv)+'"></div>';
+  const ps=c.a.split(/\n\s*\n|\n/);h+='<div class="ans">'+ps.map((t,j)=>'<p'+(j===0?' class="k"':'')+'>'+esc(t)+'</p>').join('')+'<p class="mu">Ahora calificá de 1 a 5 abajo</p></div>'}
+ h+='</div><div class="nav"><button id="pv">◀ Anterior</button><button id="nx">Siguiente ▶</button></div>';
+ E.innerHTML=h;$('#md').value=mode;$('#md').onchange=e=>{mode=e.target.value;build()};$('#hm').onclick=()=>{rm();home()};
+ $('#pv').onclick=()=>{if(i>0){i--;back=false;show()}};$('#nx').onclick=()=>{if(i<list.length-1){i++;back=false;show()}};
+ $('#cd').onclick=e=>{if(e.target.closest('.alt'))return;back=!back;show()};
+ document.querySelectorAll('.alt').forEach(b=>b.onclick=e=>{e.stopPropagation();if(chosen!==null||!key)return;chosen=b.dataset.k;b.classList.add(chosen===key?'ok':'bad');const g=document.querySelector('.alt[data-k="'+key+'"]');if(g)g.classList.add('ok');setTimeout(()=>{chosen=null;back=true;show()},1200)});
+ rm();if(back){const r=document.createElement('div');r.className='rate';r.innerHTML=[1,2,3,4,5].map(x=>'<button data-r="'+x+'">'+x+'</button>').join('');document.body.appendChild(r);r.querySelectorAll('button').forEach(b=>b.onclick=()=>rate(+b.dataset.r))}
+ window.scrollTo(0,0)}
+function rm(){const r=document.querySelector('.rate');if(r)r.remove()}
+async function rate(r){const n=list[i],id=idOf(n),p=P[id]||[0,0,0,0];let iv=p[1];const S=SRS[r];if(r<=3)iv=0;else iv=Math.max(S.d,Math.round(iv*S.m));
+ const en=[r,iv,today()+iv,Date.now()];P[id]=en;await put('p:'+EX,P);const pd=await pend();(pd[EX]=pd[EX]||{})[id]=en;await put('pend',pd);
+ list.splice(i,1);if(r<=3){const pos=Math.min(list.length,i+S.n);list.splice(pos,0,n)}if(i>=list.length)i=Math.max(0,list.length-1);back=false;show()}
+document.addEventListener('keydown',e=>{if(!D||RECV)return;if(e.key===' '){e.preventDefault();back=!back;show()}else if(back&&/^[1-5]$/.test(e.key))rate(+e.key)});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
