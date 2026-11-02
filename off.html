@@ -39,7 +39,7 @@ async function pend(){return (await get('pend'))||{}}
 
 /* ---------- recepción desde la app con internet ---------- */
 const RECV=/recv=1/.test(location.search);
-function okOrigin(o){return /^https:\/\/[a-z0-9-]+\.script\.googleusercontent\.com$/.test(o)||(location.hostname==='localhost'&&/^http:\/\/localhost(:\d+)?$/.test(o))}
+function okOrigin(o){return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(o)||(location.hostname==='localhost'&&/^http:\/\/localhost(:\d+)?$/.test(o))}
 let MTX=Promise.resolve();function withLock(f){try{if(navigator.locks&&navigator.locks.request)return navigator.locks.request('mazo_off',f)}catch(e){}const p=MTX.then(f,f);MTX=p.catch(()=>{});return p}
 let SNAP=null;const STALE={},SNAPS={};async function readySnap(sid){if(sid&&SNAPS[sid])return Object.assign({mz:'ready',sid:sid},SNAPS[sid]);const r={pend:await pend(),pendpad:(await get('pendpad'))||{},saved:Object.keys(await exams()),pendrst:(await get('pendrst'))||{},pendprefs:(await get('pendprefs'))||'',pendacc:(await get('pendacc'))||{}};SNAP=JSON.parse(JSON.stringify(r));if(sid)SNAPS[sid]=SNAP;return Object.assign({mz:'ready',sid:sid},r)}
 let Q=Promise.resolve();function okSource(e){try{const want=RECV?window.opener:window.SYW;if(!want||!e.source)return false;return e.source===want||e.source.top===want}catch(er){return false}}
