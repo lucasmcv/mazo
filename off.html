@@ -121,7 +121,7 @@ function OFFSHIM(){
   getPrefs:function(){return X('prefs')},
   savePrefs:function(s){s=String(s).slice(0,2000);return locked(function(){return Promise.all([put('x:prefs',s),put('pendprefs',s)]).then(function(){return true})})},
   getAcc:function(){return X('acc').then(function(s){return s||'{}'})},
-  saveAcc:function(ex,s){return locked(function(){return Promise.all([get('x:acc'),get('pendacc')]).then(function(a){var o={};try{o=JSON.parse(a[0]||'{}')}catch(e){}o[ex]=String(s);var pa=a[1]||{};pa[ex]=String(s);return Promise.all([put('x:acc',JSON.stringify(o)),put('pendacc',pa)]).then(function(){return true})})})},
+  saveAcc:function(ex,s){return locked(function(){return Promise.all([get('x:acc'),get('pendacc')]).then(function(a){var o={};try{o=JSON.parse(a[0]||'{}')}catch(e){}if(o[ex]===String(s))return true;o[ex]=String(s);var pa=a[1]||{};pa[ex]=String(s);return Promise.all([put('x:acc',JSON.stringify(o)),put('pendacc',pa)]).then(function(){return true})})})},
   whoAmI:function(){return X('me')},
   isOwner:function(){return Promise.resolve(false)},
   myVip:function(){return Promise.resolve('[]')}
