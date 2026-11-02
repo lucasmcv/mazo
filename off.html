@@ -39,27 +39,40 @@ async function pend(){return (await get('pend'))||{}}
 
 /* ---------- recepción desde la app con internet ---------- */
 const RECV=/recv=1/.test(location.search);
-let Q=Promise.resolve();window.addEventListener('message',e=>{Q=Q.then(()=>H(e)).catch(()=>{})});
+function okOrigin(o){return /^https:\/\/[a-z0-9-]+\.script\.googleusercontent\.com$/.test(o)||(location.hostname==='localhost'&&/^http:\/\/localhost(:\d+)?$/.test(o))}
+let MTX=Promise.resolve();function withLock(f){try{if(navigator.locks&&navigator.locks.request)return navigator.locks.request('mazo_off',f)}catch(e){}const p=MTX.then(f,f);MTX=p.catch(()=>{});return p}
+let SNAP=null;const STALE={},SNAPS={};async function readySnap(sid){if(sid&&SNAPS[sid])return Object.assign({mz:'ready',sid:sid},SNAPS[sid]);const r={pend:await pend(),pendpad:(await get('pendpad'))||{},saved:Object.keys(await exams()),pendrst:(await get('pendrst'))||{},pendprefs:(await get('pendprefs'))||'',pendacc:(await get('pendacc'))||{}};SNAP=JSON.parse(JSON.stringify(r));if(sid)SNAPS[sid]=SNAP;return Object.assign({mz:'ready',sid:sid},r)}
+let Q=Promise.resolve();function okSource(e){try{const want=RECV?window.opener:window.SYW;if(!want||!e.source)return false;return e.source===want||e.source.top===want}catch(er){return false}}
+window.addEventListener('message',e=>{const m=e.data;if(!m||m.mz===undefined||!okOrigin(e.origin)||!okSource(e))return;Q=Q.then(()=>withLock(()=>H(e))).catch(()=>{})});
 function stl(h){let s=$('#st');if(!s){s=document.createElement('div');s.id='st';s.className='msg';$('#app').prepend(s)}s.innerHTML+=h}
 
  async function H(e){const m=e.data;if(!m||m.mz===undefined)return;
-  if(m.mz==='hello'){e.source.postMessage({mz:'ready',pend:await pend(),pendpad:(await get('pendpad'))||{},saved:Object.keys(await exams())},'*');stl('<div>☁️ Sincronizando con tu cuenta…</div>');return}
+  if(m.mz==='hello'){e.source.postMessage(await readySnap(m.sid),e.origin);stl('<div>☁️ Sincronizando con tu cuenta…</div>');return}
   if(m.mz==='deck'){const E=await exams();E[m.ex]={name:m.name,n:m.data.c.length,at:Date.now()};await put('d:'+m.ex,{data:m.data,dib:m.dib});
-   const P=await prog(m.ex),R=m.prog||{};for(const k in R){if(!P[k]||(R[k][3]||0)>(P[k][3]||0))P[k]=R[k]}await put('p:'+m.ex,P);await put('exams',E);
-   const PP=(await get('pendpad'))||{};for(const n in (m.pads||{})){const id=m.ex+'|'+n;if(PP[id])continue;try{await put('pad:'+id,{d:JSON.parse(m.pads[n]),ts:0})}catch(er){}}
+   const P=await prog(m.ex),R=m.prog||{};const rr=+(m.rst||0);if(rr){const cr=+((await get('rst:'+m.ex))||0);if(rr>cr)await put('rst:'+m.ex,rr);for(const k in P)if((P[k][3]||0)<=rr)delete P[k]}for(const k in R){if(rr&&(R[k][3]||0)<=rr)continue;if(!P[k]||(R[k][3]||0)>(P[k][3]||0))P[k]=R[k]}await put('p:'+m.ex,P);await put('exams',E);
+   const PP=(await get('pendpad'))||{};for(const n in (m.pads||{})){const id=m.ex+'|'+n;if(PP[id])continue;try{const nd=JSON.parse(m.pads[n]),old=await get('pad:'+id);if(old&&old.d&&JSON.stringify(old.d)!==JSON.stringify(nd)&&(STALE[id]||old.ts>0))await put('padbak:'+id+':'+Date.now(),{d:old.d,ts:old.ts,at:Date.now()});await put('pad:'+id,{d:nd,ts:0})}catch(er){}}
    await put('rs:'+m.ex,{rs:m.rs||'',rv:m.rv||''});
    stl('<div>✅ '+esc(m.name)+' ('+m.data.c.length+' tarjetas)</div>')}
   if(m.mz==='pct'){let b=$('#pg');if(!b){$('#app').insertAdjacentHTML('beforeend','<div class="msg"><div id="pgt"></div><div style="height:14px;background:#120d22;border-radius:8px;overflow:hidden;margin-top:6px"><div id="pg" style="height:100%;width:0;background:linear-gradient(90deg,#69db7c,#ffd166);transition:width .3s"></div></div></div>');b=$('#pg')}b.style.width=m.p+'%';$('#pgt').textContent='Guardando: '+m.p+'% · '+m.t;return}
   if(m.mz==='list'){const E=await exams();for(const k in E)if(m.ids.indexOf(k)<0){delete E[k];await put('d:'+k,null)}await put('exams',E)}
-  if(m.mz==='synced'){await put('pend',{});await put('pendpad',{});stl('<div>☁️ Tus calificaciones, pizarras y notas hechas sin internet se subieron a tu cuenta.</div>')}
-  if(m.mz==='done'){if(window.SYW){const w=window.SYW;window.SYW=null;setTimeout(()=>{try{w.close()}catch(er){}try{window.focus()}catch(er){}},1500)}const b=$('#pg');if(b){b.style.width='100%';$('#pgt').textContent='Guardando: 100%'}if(RECV){const pb=$('#pg');if(pb)pb.closest('.msg').remove();document.title='✅ Completo';$('#app').insertAdjacentHTML('afterbegin','<div class="msg" style="background:#1f5f3a;color:#fff;border-color:#69db7c;font-size:20px;text-align:center"><b>✅ Completo.</b><br>Esta pestaña se cierra sola… si no, ya podés cerrarla.</div>');scrollTo(0,0);setTimeout(()=>{try{window.close()}catch(er){}},1500)}stl('<div class="msg"><b>Listo.</b> Ya podés estudiar sin internet desde el ícono Doctor Rei → «📴 Estudiar sin internet». Podés cerrar esta pestaña.</div>');if(!RECV)setTimeout(async()=>{if(document.getElementById('updb')&&!(typeof PADD!=='undefined'&&PADD&&PADD.dirty&&PADD.dirty())){location.reload();return}if(D&&EX&&document.getElementById('cd')&&!(PADD&&PADD.dirty&&PADD.dirty())){const km=mode,kx=EX;await open_(kx);mode=km;build();stl('<div>🔄 Actualizado con lo último de tu cuenta.</div>')}else if(!document.getElementById('cd'))home()},900)}
+  if(m.mz==='synced'){const S=(m.sid&&SNAPS[m.sid])||SNAP||{},sk=new Set(m.skip||[]),exOf=id=>String(id).split('|')[0],eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+   const pd=await pend(),sp=S.pend||{};for(const ex in sp){if(sk.has(ex)||!pd[ex])continue;for(const id in sp[ex])if(eq(pd[ex][id],sp[ex][id]))delete pd[ex][id];if(!Object.keys(pd[ex]).length)delete pd[ex]}await put('pend',pd);
+   const pp=(await get('pendpad'))||{},spp=S.pendpad||{};for(const id in spp)if(!sk.has(exOf(id))&&pp[id]&&pp[id].ts===spp[id].ts&&pp[id].s===spp[id].s)delete pp[id];await put('pendpad',pp);
+   const pr=(await get('pendrst'))||{},spr=S.pendrst||{};for(const ex in spr)if(!sk.has(ex)&&pr[ex]===spr[ex])delete pr[ex];await put('pendrst',pr);
+   const pf=(await get('pendprefs'))||'';if(pf&&pf===S.pendprefs)await put('pendprefs','');
+   const pa=(await get('pendacc'))||{},spa=S.pendacc||{};for(const ex in spa)if(!sk.has(ex)&&pa[ex]===spa[ex])delete pa[ex];await put('pendacc',pa);stl('<div>☁️ Tus calificaciones, pizarras y notas hechas sin internet se subieron a tu cuenta.</div>')}
+  if(m.mz==='done'&&m.aborted){if(RECV){const pb=$('#pg');if(pb)pb.closest('.msg').remove()}if(window.SYW){const w=window.SYW;window.SYW=null;setTimeout(()=>{try{w.close()}catch(er){}},2500)}return}
+  if(m.mz==='done'){if(window.SYW){const w=window.SYW;window.SYW=null;setTimeout(()=>{try{w.close()}catch(er){}try{window.focus()}catch(er){}},1500)}const b=$('#pg');if(b){b.style.width='100%';$('#pgt').textContent='Guardando: 100%'}if(RECV){const pb=$('#pg');if(pb)pb.closest('.msg').remove();document.title='✅ Completo';$('#app').insertAdjacentHTML('afterbegin','<div class="msg" style="background:#1f5f3a;color:#fff;border-color:#69db7c;font-size:20px;text-align:center"><b>✅ Completo.</b><br>Esta pestaña se cierra sola… si no, ya podés cerrarla.</div>');scrollTo(0,0);setTimeout(()=>{try{window.close()}catch(er){}},1500)}stl('<div class="msg"><b>Listo.</b> Ya podés estudiar sin internet desde el ícono Doctor Rei → «📴 Estudiar sin internet». Podés cerrar esta pestaña.</div>');if(!RECV&&window.FULLAPP){setTimeout(()=>{let d=null;try{d=document.getElementById('fullapp').contentDocument}catch(er){}if(d&&d.querySelector('.nbdty')){window.FULLAPP.banner('☁️ Sincronizado. Guardá tus cambios y tocá aquí para ver lo último.')}else location.reload()},1900)}else if(!RECV)setTimeout(async()=>{if(document.getElementById('updb')&&!(typeof PADD!=='undefined'&&PADD&&PADD.dirty&&PADD.dirty())){location.reload();return}if(D&&EX&&document.getElementById('cd')&&!(PADD&&PADD.dirty&&PADD.dirty())){const km=mode,kx=EX;await open_(kx);mode=km;build();stl('<div>🔄 Actualizado con lo último de tu cuenta.</div>')}else if(!document.getElementById('cd'))home()},900)}
+  if(m.mz==='stale'){(m.ids||[]).forEach(id=>STALE[id]=1);stl('<div>⚠️ '+(m.ids||[]).length+' pizarra(s) tenían una versión más nueva en tu cuenta (de otro dispositivo): se usa la más nueva y la de este dispositivo queda guardada como respaldo.</div>');return}
+  if(m.mz==='app'){try{if(m.html)await put('app',m.html);const X=m.x||{};const pf=(await get('pendprefs'))||'',pa=(await get('pendacc'))||{};
+   for(const k in X){if(X[k]==null)continue;if(k==='prefs'&&pf)continue;if(k==='acc'){let o={};try{o=JSON.parse(X[k]||'{}')}catch(er){}for(const ex in pa)o[ex]=pa[ex];await put('x:acc',JSON.stringify(o));continue}await put('x:'+k,X[k])}}catch(er){}return}
   if(m.mz==='notes'){try{await put('notes',m.n||{});NOTI=null}catch(er){}return}
   if(m.mz==='err'){stl('<div>⚠️ '+esc(m.t)+'</div>')}
  }
  if(RECV)(async()=>{await idb();$('#app').innerHTML='<h1>📴 Guardando para usar sin internet…</h1><div id="st" class="msg">No cierres esta pestaña hasta que diga «Listo».</div>';
   const op=window.opener;if(!op){$('#st').textContent='Abrí esta página desde el botón «⬇️ Sin internet» de la app.';return}
-  op.postMessage({mz:'ready',pend:await pend(),pendpad:(await get('pendpad'))||{},saved:Object.keys(await exams())},'*')})();
-else (async()=>{await idb();home()})();
+  /* espera el «hello» de la app (origen verificado) */setTimeout(()=>{if(!SNAP)stl('<div>⏳ Si esto no avanza en unos segundos, recargá la app (actualizá la página) y volvé a tocar «⬇️ Sin internet».</div>')},8000)})();
+else (async()=>{await idb();const ap=/simple=1/.test(location.search)?null:await get('app');if(ap)fullApp(ap);else home()})();
 
 /* ---------- estudio sin internet ---------- */
 let MULTI=null,MAP=[],XD={},RSA={},RVA={};function TSK(){return 'off_ts_'+(MULTI?'multi':EX)}
@@ -72,7 +85,77 @@ async function home(){const E=await exams(),pd=await pend();const np=Object.valu
  if(np||npp)h+='<div class="msg">☁️ Tenés <b>'+np+'</b> calificaciones y <b>'+npp+'</b> pizarras/notas hechas sin internet. Se suben a tu cuenta la próxima vez que, con internet, toques «⬇️ Sin internet» en la app.</div>';
  h+='<p><button id="sy" style="background:#1f5f3a;border-color:#69db7c">☁️ Sincronizar con mi cuenta</button> <button onclick="location.href=\'./\'">← Volver al inicio</button></p><div class="mu" style="font-size:13px">Sincronizar (necesita internet): sube a tu cuenta de Google tus notas 1-5, pizarras y notas hechas sin internet, y actualiza los exámenes guardados. Así seguís en la PC o la tablet donde quedaste.</div>';
  $('#app').innerHTML=h;document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>open_(b.dataset.ex));if($('#mxg'))$('#mxg').onclick=()=>{const a=[...document.querySelectorAll('.mx:checked')].map(x=>x.value);if(!a.length){alert('Marcá «varios» en los exámenes que querés juntar.');return}if(a.length===1)open_(a[0]);else openMulti(a)};$('#sy').onclick=()=>{if(!navigator.onLine){alert('Necesitás internet para sincronizar.');return}window.SYW=window.open(APPU+'?sync=1','_blank')}}
-const APPU='https://script.google.com/macros/s/AKfycbwdZ4I3V_RpnAvIQ0BQ-20xQordBOhQi4AZGO3jZM0Q69O2HsUX6yc0us8qKSXuKN308g/exec';
+
+/* ---------- copia exacta de la app (sin internet) ---------- */
+function OFFSHIM(){
+ /* google.script.run simulado sobre IndexedDB (copia exacta de la app, sin internet) */
+ var DBP=null;function db(){if(!DBP)DBP=new Promise(function(ok,ko){var r=indexedDB.open('mazo_off',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){ok(r.result)};r.onerror=function(){ko(r.error)}});return DBP}
+ function get(k){return db().then(function(d){return new Promise(function(ok,ko){var q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=function(){ok(q.result)};q.onerror=function(){ko(q.error)}})})}
+ function put(k,v){return db().then(function(d){return new Promise(function(ok,ko){var t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=function(){ok()};t.onerror=function(){ko(t.error)}})})}
+ function keys(){return db().then(function(d){return new Promise(function(ok,ko){var q=d.transaction('kv').objectStore('kv').getAllKeys();q.onsuccess=function(){ok(q.result||[])};q.onerror=function(){ko(q.error)}})})}
+ var LOCK=Promise.resolve();function locked(f){var g=function(){try{if(parent&&parent!==window&&typeof parent.withLock==='function')return new Promise(function(res,rej){var tm=setTimeout(function(){rej(new Error('tiempo agotado guardando en el dispositivo'))},20000);parent.withLock(function(){var p=Promise.resolve().then(f);p.then(function(v){clearTimeout(tm);res(v)},function(e){clearTimeout(tm);rej(e)});return p.catch(function(){})})})}catch(e){}try{if(navigator.locks&&navigator.locks.request)return navigator.locks.request('mazo_off',f)}catch(e){}return f()};var p=LOCK.then(g,g);LOCK=p.catch(function(){});return p}
+ function X(k){return get('x:'+k).then(function(v){return v==null?'':v})}
+ var NET='Sin internet: esta función necesita conexión.';
+ function tsv(v){return (v&&v[3])||0}
+ var F={
+  listExams:function(){return get('exams').then(function(E){E=E||{};return JSON.stringify(Object.keys(E).map(function(k){return {id:k,name:E[k].name}}))})},
+  getData:function(ex){return get('d:'+ex).then(function(d){if(!d)throw new Error('Este examen no está guardado en el dispositivo');return JSON.stringify(d.data)})},
+  getChunk:function(ex,i){return get('d:'+ex).then(function(d){return JSON.stringify((d&&d.dib&&d.dib[i])||{})})},
+  getProgress:function(ex){return get('p:'+ex).then(function(P){P=P||{};var o={},pre=ex+'|';for(var k in P)if(k.indexOf(pre)===0)o[k.slice(pre.length)]=P[k];return get('rst:'+ex).then(function(r){if(r)o._r=r;return JSON.stringify(o)})})},
+  saveProgress:function(ex,s,reset){return locked(function(){return Promise.all([get('p:'+ex),get('pend'),get('rst:'+ex),get('pendrst')]).then(function(a){
+   var P=a[0]||{},pd=a[1]||{},r=+(a[2]||0),pr=a[3]||{},pre=ex+'|',inc={};try{inc=JSON.parse(s||'{}')||{}}catch(e){throw new Error('Progreso invalido')}
+   if((reset===undefined||reset===null)&&String(s||'').trim()==='{}')reset=Date.now();reset=(+reset>0)?+reset:0;
+   if(reset){r=Math.max(r,reset);pr[ex]=r}
+   delete inc._r;var pe=pd[ex]=pd[ex]||{};
+   for(var k in inc){var id=pre+k;if(!P[id]||tsv(inc[k])>tsv(P[id])){P[id]=inc[k];pe[id]=inc[k]}}
+   if(r)for(var q in P)if(q.indexOf(pre)===0&&tsv(P[q])<=r){delete P[q];delete pe[q]}
+   var o={};for(var z in P)if(z.indexOf(pre)===0)o[z.slice(pre.length)]=P[z];if(r)o._r=r;
+   return Promise.all([put('p:'+ex,P),put('pend',pd),put('rst:'+ex,r||0),put('pendrst',pr)]).then(function(){return JSON.stringify(o)})})})},
+  getPad:function(id){return get('pad:'+id).then(function(r){return r&&r.d?JSON.stringify(r.d):''})},
+  savePad:function(id,s,ts){return locked(function(){s=String(s);var d=JSON.parse(s);ts=+ts||Date.now();return get('pad:'+id).then(function(cur){if(cur&&cur.ts&&ts<cur.ts)return 'stale';return get('pendpad').then(function(PP){PP=PP||{};PP[id]={s:s,ts:ts};return Promise.all([put('pad:'+id,{d:d,ts:ts}),put('pendpad',PP)]).then(function(){return true})})})})},
+  getNotebook:function(ex){var pre='pad:'+ex+'|';return keys().then(function(K){var o={},L=K.filter(function(k){return typeof k==='string'&&k.indexOf(pre)===0&&/^\d+$/.test(k.slice(pre.length))});return Promise.all(L.map(function(k){return get(k).then(function(r){if(r&&r.d)o[k.slice(pre.length)]=JSON.stringify(r.d)})})).then(function(){return JSON.stringify(o)})})},
+  getRsLinks:function(ex){return get('rs:'+ex).then(function(r){return (r&&r.rv)||''})},
+  getResumen:function(ex){return get('rs:'+ex).then(function(r){return (r&&r.rs)||''})},
+  getNotes:function(){return get('notes').then(function(n){return JSON.stringify(n||{})})},
+  getSides:function(){return X('sides')},getSel:function(){return X('sel')},getFel:function(){return X('fel')},getFin:function(){return X('fin')},getNope:function(){return X('nope')},
+  getPrefs:function(){return X('prefs')},
+  savePrefs:function(s){s=String(s).slice(0,2000);return locked(function(){return Promise.all([put('x:prefs',s),put('pendprefs',s)]).then(function(){return true})})},
+  getAcc:function(){return X('acc').then(function(s){return s||'{}'})},
+  saveAcc:function(ex,s){return locked(function(){return Promise.all([get('x:acc'),get('pendacc')]).then(function(a){var o={};try{o=JSON.parse(a[0]||'{}')}catch(e){}o[ex]=String(s);var pa=a[1]||{};pa[ex]=String(s);return Promise.all([put('x:acc',JSON.stringify(o)),put('pendacc',pa)]).then(function(){return true})})})},
+  whoAmI:function(){return X('me')},
+  isOwner:function(){return Promise.resolve(false)},
+  myVip:function(){return Promise.resolve('[]')}
+ };
+ ['sendDoubt','saveCard','deleteCard','renameExam','deleteExam','listViewers','shareExam','unshareExam','setVip'].forEach(function(n){F[n]=function(){return Promise.reject(new Error(NET))}});
+ function Runner(ok,ko){var self=this;this.withSuccessHandler=function(f){return new Runner(f,ko)};this.withFailureHandler=function(f){return new Runner(ok,f)};this.withUserObject=function(){return self};
+  Object.keys(F).forEach(function(n){self[n]=function(){var a=arguments;setTimeout(function(){var p;try{p=Promise.resolve(F[n].apply(null,a))}catch(e){p=Promise.reject(e)}p.then(function(v){ok&&ok(v)},function(e){if(ko)ko(e instanceof Error?e:new Error(String(e)));else console.warn(e)})},0)}})}
+ window.google={script:{run:new Runner(null,null),host:{close:function(){},setHeight:function(){},setWidth:function(){}}}};
+ window.MAZO_OFFLINE=1;
+}
+
+function OFFUI(){
+ function add(){var P=document.getElementById('picker');if(!P||P.hidden)return;var h=P.querySelector('h2');if(!h||document.getElementById('offui'))return;
+  var d=document.createElement('div');d.id='offui';d.style.cssText='display:grid;gap:8px;margin:0 0 12px';
+  d.innerHTML='<div style="font:600 14px system-ui,sans-serif;color:#7be495">📴 Estás sin internet: usás la copia guardada en este dispositivo.</div><div style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" id="offsy" style="padding:10px 14px;border-radius:12px;border:1px solid #69db7c;background:#1f5f3a;color:#fff;font:700 15px system-ui,sans-serif;cursor:pointer">☁️ Sincronizar con mi cuenta</button><button type="button" id="offsimple" style="padding:10px 14px;border-radius:12px;border:1px solid #6b5aa8;background:#2a2045;color:#f3eefc;font:600 14px system-ui,sans-serif;cursor:pointer">🧰 Versión simple</button><button type="button" id="offhome" style="padding:10px 14px;border-radius:12px;border:1px solid #6b5aa8;background:#2a2045;color:#f3eefc;font:600 14px system-ui,sans-serif;cursor:pointer">← Inicio</button></div><div id="offpend" style="font:13px system-ui,sans-serif;color:#cfc8e6"></div>';
+  h.insertAdjacentElement('afterend',d);
+  document.getElementById('offsy').onclick=function(e){e.stopPropagation();parent.offSync()};
+  document.getElementById('offsimple').onclick=function(e){e.stopPropagation();parent.location.href='off.html?simple=1'};
+  document.getElementById('offhome').onclick=function(e){e.stopPropagation();parent.location.href='./'};
+  parent.offPendCount().then(function(t){var x=document.getElementById('offpend');if(x)x.textContent=t})}
+ function fx(){var y=document.getElementById('sync');if(y&&/cuenta de Google/.test(y.textContent))y.textContent='✓ guardado en este dispositivo (se sube a tu cuenta al sincronizar)'}
+ new MutationObserver(function(){add();fx()}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(add,1500);
+}
+async function offPendCount(){const pd=await pend(),pp=(await get('pendpad'))||{};const np=Object.values(pd).reduce((a,o)=>a+Object.keys(o).length,0),npp=Object.keys(pp).length,nx=Object.keys((await get('pendrst'))||{}).length+Object.keys((await get('pendacc'))||{}).length+((await get('pendprefs'))?1:0);return (np||npp||nx)?'☁️ Falta subir a tu cuenta: '+np+' calificaciones, '+npp+' pizarras/notas'+(nx?' y '+nx+' ajustes':'')+'. Se suben al tocar «☁️ Sincronizar» con internet.':'✓ Todo lo hecho en este dispositivo ya está en tu cuenta.'}
+function offSync(){if(!navigator.onLine){alert('Necesitás internet para sincronizar.');return}if(window.SYW&&!window.SYW.closed){try{window.SYW.focus()}catch(e){}return}window.SYW=window.open(APPU+'?sync=1','_blank')}
+function fullApp(html){window.FULLAPP={banner:function(t){let b=document.getElementById('fabn');if(!b){b=document.createElement('button');b.id='fabn';b.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:100;padding:10px 16px;border-radius:999px;border:0;background:#00e5c0;color:#00302a;font:800 14px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.4)';b.onclick=()=>location.reload();document.body.appendChild(b)}b.textContent=t}};
+ const inj='<script>('+OFFSHIM.toString()+')();<\/script>';const ui='<script>('+OFFUI.toString()+')();<\/script>';
+ let h=html;const k=h.search(/<head[^>]*>/i);h=k>=0?h.replace(/<head[^>]*>/i,m=>m+inj):inj+h;const z=h.toLowerCase().lastIndexOf('</body>');h=z>=0?h.slice(0,z)+ui+h.slice(z):h+ui;
+ document.documentElement.style.cssText='margin:0;padding:0;height:100%;overflow:hidden;background:#17122b';document.body.style.cssText='margin:0;padding:0;height:100%;overflow:hidden;background:#17122b';
+ document.body.querySelectorAll(':scope>*').forEach(x=>{if(x.tagName!=='SCRIPT')x.style.display='none'});const t=document.getElementById('thb');if(t)t.remove();
+ const f=document.createElement('iframe');f.id='fullapp';f.title='Doctor Rei';f.setAttribute('allow','clipboard-write');f.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#17122b';f.srcdoc=h;document.body.appendChild(f);
+ setInterval(()=>{const t=document.getElementById('thb');if(t)t.remove()},700)}
+
+const APPU=(location.hostname==='localhost'&&localStorage.getItem('off_appu'))||'https://script.google.com/macros/s/AKfycbwdZ4I3V_RpnAvIQ0BQ-20xQordBOhQi4AZGO3jZM0Q69O2HsUX6yc0us8qKSXuKN308g/exec';
 async function open_(ex){MULTI=null;EX=ex;TOP='';TS=new Set();try{(JSON.parse(localStorage.getItem('off_ts_'+ex)||'[]')).forEach(z=>TS.add(z))}catch(e){}try{const r=await get('rs:'+ex)||{};RSH=r.rs||'';RSV=r.rv?JSON.parse(r.rv):{}}catch(e){RSH='';RSV={}}const d=await get('d:'+ex);D=d.data;DIB=d.dib||[];P=await prog(ex);build();}
 
 function rsOpen(lv){let w=document.getElementById('rsw');if(w)w.remove();w=document.createElement('div');w.id='rsw';w.innerHTML='<div class="rsh"><b>📖 Resumen</b><span id="rsn"></span><button id="rsp">◀</button><button id="rsx">▶</button><button id="rsc">✕</button></div><iframe id="rsf"></iframe>';document.body.appendChild(w);const f=$('#rsf');
@@ -103,7 +186,7 @@ function guard(f){return function(){if(PADD&&PADD.dirty()&&!confirm('¿Querés s
 function show(){const E=document.getElementById('app');PADD=null;if(MULTI&&list.length){const m=MAP[list[i]];EX=m.ex;RSH=RSA[m.ex]||'';RSV={};if(RVA[m.ex]&&RVA[m.ex][m.n])RSV[list[i]]=RVA[m.ex][m.n]}
  if(!list.length){E.innerHTML='<h1>🎉 No queda nada para hoy</h1><div class="nav"><button id="all">▶ Seguir con «Todas»</button><button id="hm">← Exámenes</button>'+(TS.size?'<button id="tt">📚 Todos los temas</button>':'')+'</div>';if($('#tt'))$('#tt').onclick=()=>{TS.clear();try{localStorage.setItem(TSK(),'[]')}catch(e){}build()};$('#all').onclick=()=>{mode='all';$('#app');build()};$('#hm').onclick=home;document.querySelector('.rate')&&document.querySelector('.rate').remove();return}
  const n=list[i],c=D.c[n],p=P[idOf(n)],pq=parseQ(c.q),key=keyOf(c.a);
- let h='<div class="top"><button id="hm">← Exámenes</button><select id="md"><option value="today">Repaso de hoy</option><option value="all">Todas</option><option value="r1">Solo nota 1-2</option><option value="asc">Sin ver → 1 → 2 → 3 → 4 → 5</option></select>'+'<button id="tp" class="tpb">📚 '+(TS.size===0?'Todos los temas':TS.size===1?esc([...TS][0]):TS.size+' temas elegidos')+' ▾</button>'+'<span class="mu">Tarjeta '+(i+1)+' de '+list.length+'</span></div>';
+ let h='<div class="top"><button id="hm">← Exámenes</button><select id="md"><option value="today">Repaso de hoy</option><option value="all">Todas</option><option value="r1">Solo nota 1-2</option><option value="asc">Sin ver → 1 → 2 → 3 → 4 → 5</option></select>'+'<button id="tp" class="tpb">📚 '+(TS.size===0?'Todos los temas':TS.size===1?esc([...TS][0]):TS.size+' temas elegidos')+' ▾</button>'+'<span class="mu">Tarjeta '+(i+1)+' de '+list.length+'</span></div>';{let tot=0,vis=0;D.c.forEach((x,k)=>{if(x.del||(TS.size&&!TS.has(x.t)))return;tot++;if(P[idOf(k)])vis++});const pc=tot?Math.round(vis*100/tot):0,C=2*Math.PI*20;h+='<div style="display:flex;align-items:center;gap:12px;margin:8px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#241a44,#1a2a3e);border:1px solid #4b3a80"><svg width="54" height="54" viewBox="0 0 54 54" style="flex:none"><circle cx="27" cy="27" r="20" fill="none" stroke="#120d22" stroke-width="7"/><circle cx="27" cy="27" r="20" fill="none" stroke="#69db7c" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+(C*pc/100).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 27 27)"/><text x="27" y="31" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">'+pc+'%</text></svg><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;color:#fff">Viste '+vis+' de '+tot+'</div><div style="font-size:13px;color:#ffd166;margin-top:2px">Faltan '+(tot-vis)+' tarjetas · '+(100-pc)+'% para verlas todas</div></div></div>'}
  h+='<div class="card'+(p?' r'+p[0]:'')+'" id="cd"><div class="tag">'+(MULTI?'📘 '+esc(XD[EX].name)+' · ':'')+esc(c.t||'')+(p?' · última nota: '+p[0]:'')+'</div>';
  if(!back){h+='<div class="q">'+esc(pq.st).replace(/\n/g,'<br>')+'</div>';pq.alts.forEach(a=>{h+='<button class="alt" data-k="'+a.k+'">'+esc(a.t)+'</button>'});if(!pq.alts.length)h+='';h+='<p class="mu">Tocá la tarjeta para ver la respuesta</p>'}
  else{const sv=svgFor(c);
@@ -118,7 +201,7 @@ function show(){const E=document.getElementById('app');PADD=null;if(MULTI&&list.
 function rm(){const r=document.querySelector('.rate');if(r)r.remove()}
 let NOTI=null;async function noteFx(r){try{if(!NOTI)NOTI=(await get('notes'))||{};const u=NOTI[r];if(!u)return;const im=document.createElement('img');im.src=u;im.style.cssText='position:fixed;left:50%;top:50%;width:min(60vw,320px);transform:translate(-50%,-50%) scale(.7);opacity:1;z-index:9999;pointer-events:none;transition:transform .9s ease-out,opacity .9s ease-in';document.body.appendChild(im);requestAnimationFrame(()=>requestAnimationFrame(()=>{im.style.transform='translate(-50%,-50%) scale(1.6)';im.style.opacity='0'}));setTimeout(()=>im.remove(),1000)}catch(e){}}
 async function rate(r){noteFx(r);const n=list[i],id=idOf(n),p=P[id]||[0,0,0,0];let iv=p[1];const S=SRS[r];if(r<=3)iv=0;else iv=Math.max(S.d,Math.round(iv*S.m));
- const en=[r,iv,today()+iv,Date.now()];P[id]=en;await put('p:'+EX,MULTI?Object.fromEntries(Object.entries(P).filter(([k])=>k.startsWith(EX+'|'))):P);const pd=await pend();(pd[EX]=pd[EX]||{})[id]=en;await put('pend',pd);
+ const en=[r,iv,today()+iv,Date.now()];P[id]=en;await withLock(async()=>{const FP=(await get('p:'+EX))||{};if(!FP[id]||(FP[id][3]||0)<=en[3])FP[id]=en;await put('p:'+EX,FP);for(const k in FP)if(k.startsWith(EX+'|')&&(!P[k]||(FP[k][3]||0)>(P[k][3]||0)))P[k]=FP[k];const pd=await pend();(pd[EX]=pd[EX]||{})[id]=en;await put('pend',pd)});
  list.splice(i,1);if(r<=3){let pos=Math.min(list.length,i+S.n);if(mode==='asc'){let lu=-1;for(let j=i;j<list.length;j++){const q=P[idOf(list[j])];if(!q||q[0]<=r)lu=j}if(lu>=0)pos=Math.max(pos,lu+1)}list.splice(pos,0,n)}if(i>=list.length)i=Math.max(0,list.length-1);back=false;show()}
 document.addEventListener('keydown',e=>{if(!D||RECV||/TEXTAREA|SELECT/.test((e.target||{}).tagName))return;if(PADD&&PADD.dirty())return;if(e.key===' '){e.preventDefault();back=!back;show()}else if(/^[1-5]$/.test(e.key)&&list.length)rate(+e.key)});
 let PADD=null;
@@ -142,7 +225,7 @@ async function makePad(box,id){const rec=(await get('pad:'+id))||{d:{s:[],t:''}}
  box.querySelector('.un').onclick=()=>{if(data.s.length){data.s.pop();mark();draw()}};
  box.querySelector('.cl').onclick=()=>{if(data.s.length&&confirm('¿Borrar toda la pizarra?')){data.s=[];mark();draw()}};
  tx.oninput=()=>{data.t=tx.value;mark()};
- async function save(){const ts=Date.now();await put('pad:'+id,{d:data,ts:ts});const PP=(await get('pendpad'))||{};PP[id]={s:JSON.stringify(data),ts:ts};await put('pendpad',PP);dirty=false;pd.classList.remove('dirty');st.textContent='✓ guardado en este dispositivo (se sube a tu cuenta al sincronizar)'}
+ async function save(){const ts=Date.now();await withLock(async()=>{await put('pad:'+id,{d:data,ts:ts});const PP=(await get('pendpad'))||{};PP[id]={s:JSON.stringify(data),ts:ts};await put('pendpad',PP)});dirty=false;pd.classList.remove('dirty');st.textContent='✓ guardado en este dispositivo (se sube a tu cuenta al sincronizar)'}
  box.querySelector('.sv').onclick=save;requestAnimationFrame(size);addEventListener('resize',size);
  return {dirty:()=>dirty,save:save}}
 async function cuaderno(){const E=$('#app');E.innerHTML='<div class="top"><button id="bk">← Volver a las tarjetas</button></div><h1>📚 Cuaderno</h1><div class="mu">Todas las tarjetas de este examen con pizarra o notas.</div><div id="nbl"></div>';
@@ -153,7 +236,7 @@ async function cuaderno(){const E=$('#app');E.innerHTML='<div class="top"><butto
 
 async function ordUI(L){const OID=idOf('ord');const els=()=>[...L.querySelectorAll(':scope>.nbe')];
  const bar=document.createElement('div');bar.className='nbordbar';bar.innerHTML='<span>⠿ Arrastrá desde <b>⠿</b> para cambiar el orden</span><button type="button" class="nbrst">↺ Restaurar orden</button>';L.prepend(bar);
- const save=async()=>{const ord=els().map(e=>+e.dataset.n),d={ord:ord},ts=Date.now();await put('pad:'+OID,{d:d,ts:ts});const PP=(await get('pendpad'))||{};PP[OID]={s:JSON.stringify(d),ts:ts};await put('pendpad',PP)};
+ const save=async()=>{const ord=els().map(e=>+e.dataset.n),d={ord:ord},ts=Date.now();await withLock(async()=>{await put('pad:'+OID,{d:d,ts:ts});const PP=(await get('pendpad'))||{};PP[OID]={s:JSON.stringify(d),ts:ts};await put('pendpad',PP)})};
  const apply=ord=>{const map={};els().forEach(e=>map[e.dataset.n]=e);const pres=Object.keys(map).map(Number);let res=[];ord.forEach(n=>{if(map[n]!==undefined&&res.indexOf(n)<0)res.push(n)});pres.filter(n=>res.indexOf(n)<0).sort((x,y)=>x-y).forEach(n=>{const k=res.findIndex(z=>z>n);if(k<0)res.push(n);else res.splice(k,0,n)});res.forEach(n=>L.appendChild(map[n]))};
  bar.querySelector('.nbrst').onclick=async()=>{if(!confirm('¿Seguro que querés restaurar el orden normal (n.º 1, 2, 3…)? Se pierde el orden que armaste arrastrando.'))return;els().sort((x,y)=>x.dataset.n-y.dataset.n).forEach(x=>L.appendChild(x));await save()};
  els().forEach(el=>{const h=document.createElement('button');h.type='button';h.className='nbdrag';h.textContent='⠿';h.title='Arrastrar para cambiar de lugar';const tg=el.querySelector('.tag');(tg||el).prepend(h);
