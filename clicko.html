@@ -1,0 +1,72 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dr. Clicko · Doctor Rei</title>
+<style>
+:root{--bg:#1a1030;--card:#24183f;--fg:#f1ecff;--mut:#bfb3e0;--acc:#c77dff;--ok:#2ecc71;--warn:#ffcf5a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+.c{background:var(--card);border:2px solid var(--acc);border-radius:16px;padding:20px;max-width:420px;width:100%;display:grid;gap:12px;text-align:center}
+h1{font-size:20px;margin:0}.ic{font-size:44px}.mut{color:var(--mut);font-size:14px}
+.btn{display:inline-block;font:700 16px system-ui,sans-serif;padding:11px 16px;border-radius:12px;border:0;background:var(--acc);color:#1a0f33;cursor:pointer;text-decoration:none}
+.btn.sec{background:#3a2f63;color:#fff;border:1px solid #6b5aa8}
+ol{text-align:left;margin:0;padding-left:22px}li{margin:4px 0}
+.spin{width:34px;height:34px;border:4px solid #ffffff33;border-top-color:var(--acc);border-radius:50%;margin:0 auto;animation:r 1s linear infinite}@keyframes r{to{transform:rotate(360deg)}}
+</style></head><body><div class="c" id="v"><div class="spin"></div><div>Buscando Dr. Clicko…</div></div>
+<script>
+(function(){
+var API=(location.hostname==='localhost'&&/api=([\w:.\/]+)/.exec(location.search)||[0,'http://127.0.0.1:51723'])[1],DL='https://github.com/lucasmcv/mazo/releases/latest/download/DrClicko-Instalador.exe';
+var V=document.getElementById('v'),ITEM=null,OP=window.opener,LIC=null,LICW=[];
+function okOrigin(o){return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(o)||o==='https://lucasmcv.github.io'||/^http:\/\/localhost(:\d+)?$/.test(o)}
+function show(ic,tit,txt,btns){V.innerHTML='<div class="ic">'+ic+'</div><h1>'+tit+'</h1>'+(txt?'<div>'+txt+'</div>':'')+(btns||'')}
+function wait(t){V.innerHTML='<div class="spin"></div><div>'+t+'</div>'}
+function retryBtn(){return '<button class="btn sec" id="re">🔄 Probar de nuevo</button>'}
+function bindRe(){var b=document.getElementById('re');if(b)b.onclick=start}
+function api(path,body){var o={method:body?'POST':'GET',cache:'no-store'};if(body){o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(body)}
+ try{o.targetAddressSpace='loopback'}catch(e){}
+ var ct=new AbortController();o.signal=ct.signal;var to=setTimeout(function(){ct.abort()},body?8000:2500);
+ return fetch(API+path,o).then(function(r){clearTimeout(to);return r.json()})}
+window.addEventListener('message',function(e){if(!OP||e.source!==OP||!okOrigin(e.origin))return;var d=e.data||{};
+ if(d.clk==='item'&&d.item&&!ITEM){ITEM=d.item;start()}
+ if(d.clk==='licencia'){var w=LICW.shift();if(w)w(d.r||{})}});
+function pedirLicencia(eq){return new Promise(function(ok){LICW.push(ok);try{OP.postMessage({clk:'licencia',equipo:eq},'*')}catch(e){LICW.shift();ok({ok:false,motivo:'sin_app'})}
+ setTimeout(function(){var i=LICW.indexOf(ok);if(i>=0){LICW.splice(i,1);ok({ok:false,motivo:'tiempo'})}},30000)})}
+var MSG={
+ limite_equipos:['🖥️','Ya usás Dr. Clicko en 2 computadoras','Desvinculá una desde Doctor Rei: en el dorso de cualquier tarjeta tocá el botón 🖥️ al lado de «🎨 Explicar con dibujos».'],
+ otro_equipo:['⚠️','Esta activación es de otra computadora','Volvé a tocar «🎨 Explicar con dibujos» en Doctor Rei desde esta PC.'],
+ vencida:['⏰','La activación venció','Volvé a tocar «🎨 Explicar con dibujos» con internet para renovarla.'],
+ licencia_invalida:['⚠️','No se pudo activar Dr. Clicko','Volvé a intentar desde Doctor Rei. Si sigue pasando, actualizá Dr. Clicko.'],
+ sin_internet:['📶','Conectate a internet para activar Dr. Clicko','Se activa una vez y después funciona hasta 30 días aunque no tengas internet.'],
+ limite_diario:['⏳','Probaste muchas veces hoy','Volvé a intentar mañana.'],
+ equipo_invalido:['⚠️','No se pudo leer esta computadora','Actualizá Dr. Clicko y volvé a intentar.'],
+ sin_cuenta:['🔑','Entrá con tu cuenta en Doctor Rei','Abrí Doctor Rei con tu cuenta de Google y volvé a tocar el botón.'],
+ tiempo:['⏳','Doctor Rei no respondió','Cerrá esta ventanita y volvé a tocar «🎨 Explicar con dibujos».'],
+ sin_app:['↩️','Abrí esta ventanita desde Doctor Rei','Tocá «🎨 Explicar con dibujos» en el dorso de una tarjeta.'],
+ error:['⚠️','Algo salió mal','Volvé a intentar en un momento.']};
+function msg(k,extra){var m=MSG[k]||MSG.error;show(m[0],m[1],m[2]+(extra||''),'<div>'+retryBtn()+'</div>');bindRe()}
+function noClicko(){show('🩺','Instalá Dr. Clicko','Dr. Clicko te explica cada ítem con dibujos y voz, usando tu cuenta de Claude.',
+ '<a class="btn" href="'+DL+'">⬇️ Descargar Dr. Clicko</a><ol class="mut"><li>Abrí el archivo descargado. Si Windows dice «Windows protegió tu PC», tocá <b>Más información</b> → <b>Ejecutar de todas formas</b>.</li><li>Al abrir Dr. Clicko, entrá con tu cuenta de Claude.</li><li>Volvé acá y tocá «Probar de nuevo».</li></ol><div class="mut">Si ya lo tenés, abrilo y volvé a intentar.<br>La primera vez Chrome puede preguntarte si este sitio puede conectarse con dispositivos de tu red: tocá <b>Permitir</b>.</div><div>'+retryBtn()+'</div>');bindRe()}
+var tries=0;
+function explicar(){wait('Mandando el ítem a Dr. Clicko…');
+ api('/explicar',ITEM).then(function(r){
+  if(r.ok){show('✅','¡Listo!','Dr. Clicko ya está explicando este ítem.');setTimeout(function(){window.close()},250);return}
+  var m=r.motivo;
+  if(m==='pendiente_permiso'){show('🩺','Aceptá el permiso en Dr. Clicko','Dr. Clicko te pregunta si Doctor Rei puede pedirle explicaciones: tocá <b>Permitir</b>.');if(++tries<30)setTimeout(explicar,2000);else msg('error');return}
+  if(m==='no_permitido'){show('🚫','Dr. Clicko tiene bloqueado Doctor Rei','Podés habilitarlo en Dr. Clicko → Configuración → Cuenta de Claude → Olvidar sitios permitidos.','<div>'+retryBtn()+'</div>');bindRe();return}
+  if(m==='sin_activar'){LIC=null;return activar(true)}
+  if(m==='sin_sesion'){show('🔑','Entrá con tu cuenta de Claude','Abrí Dr. Clicko → Configuración → Cuenta de Claude e iniciá sesión.','<div>'+retryBtn()+'</div>');bindRe();return}
+  if(m==='ocupado'){show('⏳','Dr. Clicko está explicando otra cosa','Esperá que termine y volvé a tocar.','<div>'+retryBtn()+'</div>');bindRe();return}
+  show('⚠️','Este ítem no se pudo mandar','Probá con otra tarjeta.')
+ }).catch(noClicko)}
+var EST=null,reAct=0;
+function activar(force){wait('Activando Dr. Clicko en esta computadora…');
+ if(++reAct>2)return msg('licencia_invalida');
+ pedirLicencia(EST.equipo).then(function(r){
+  if(!r.ok){if(EST.activado&&EST.vence&&EST.vence>Date.now()/1000+60)return explicar();return msg(r.motivo||'error')}
+  api('/activar',{licencia:r.licencia}).then(function(a){if(a.ok)return explicar();msg(a.motivo||'licencia_invalida')}).catch(noClicko)})}
+function start(){if(!OP){return msg('sin_app')}if(!ITEM){wait('Esperando a Doctor Rei…');return}
+ tries=0;reAct=0;wait('Buscando Dr. Clicko…');
+ api('/estado').then(function(s){EST=s;
+  if(!s||s.app!=='Dr. Clicko')return noClicko();
+  var now=Date.now()/1000;
+  if(!s.activado||!s.vence||s.vence-now<7*86400)return activar();
+  explicar()}).catch(noClicko)}
+if(!OP){msg('sin_app')}else{try{OP.postMessage({clk:'hola'},'*')}catch(e){msg('sin_app')}setTimeout(function(){if(!ITEM)msg('sin_app')},6000)}
+})();
+</script></body></html>
